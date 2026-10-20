@@ -1,0 +1,16 @@
+# dsh-plugin-usage-analytics 的 bundle 入口：把宿主半登记进 DSH 的插件图。
+# 客户端半由 package.json 的 dsh.client 声明，加载器自动取 exports["./client"]。
+#
+# 防双挂（参考件真实教训：同一插件挂两次会让 prefix 路由重复注册，
+# 报 duplicate prefix route 并拖垮整棵插件树）：
+#   disabled 表达式在配置求解时求值，只有"同一个包名 + 不同 id + 未禁用"
+#   才判定为重复，避免把自己也判进去。
+- insert:
+    - id: usage-analytics
+      name: 'dsh-plugin-usage-analytics'
+      disabled: !!js "[...ctx.loader.entries()].some((e) => e.options.name === 'dsh-plugin-usage-analytics' && e.options.id !== 'usage-analytics' && !e.disabled)"
+      config:
+        # local = 只写本机，零出站（默认，也是唯一实现了上报链路的模式之前的安全档）。
+        mode: local
+        # 原始事件不落盘，只保留聚合；保留天数用于裁剪日表。
+        retentionDays: 90

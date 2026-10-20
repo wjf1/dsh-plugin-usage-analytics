@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Usage Analytics",
+    "description": "Local statistics for tool calls, turns, errors and capability usage in this profile, shown in a sidebar panel and backed by a local HTTP API."
+  }
+}

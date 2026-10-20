@@ -1,0 +1,63 @@
+{
+  "name": "dsh-plugin-usage-analytics",
+  "version": "0.1.1",
+  "description": "DSH 插件用量与能力看板：本地采集会话事件、聚合为日表、面板/HTTP 查询，默认 local 零出站。",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wjf1/dsh-plugin-usage-analytics.git"
+  },
+  "homepage": "https://github.com/wjf1/dsh-plugin-usage-analytics#readme",
+  "bugs": {
+    "url": "https://github.com/wjf1/dsh-plugin-usage-analytics/issues"
+  },
+  "author": "wjf1 (https://github.com/wjf1)",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "locale/*.json",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "HANDOFF.md",
+    "LICENSE",
+    "docs"
+  ],
+  "engines": {
+    "node": ">=22",
+    "dsh": ">=0.2.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ]
+    },
+    "manifestVersion": 1
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "analytics",
+    "usage"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/store.test.mjs test/aggregate.test.mjs test/collector.test.mjs test/routes.test.mjs test/rpc.test.mjs test/index.test.mjs"
+  }
+}
