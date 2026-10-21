@@ -47,11 +47,12 @@ async function request(routes, options = {}) {
 const sameOrigin = { 'sec-fetch-site': 'same-origin' };
 
 test('fence：同源放行、跨站拒绝、Origin 与 Host 不一致拒绝', () => {
-  assert.equal(fence({ headers: { 'sec-fetch-site': 'same-origin' } }), null);
-  assert.equal(fence({ headers: { 'sec-fetch-site': 'none' } }), null);
-  assert.equal(fence({ headers: {} }), null);
-  assert.equal(fence({ headers: { 'sec-fetch-site': 'cross-site' } }), 'E_ORIGIN');
-  assert.equal(fence({ headers: { 'sec-fetch-site': 'same-site' } }), 'E_ORIGIN');
+  assert.equal(fence({ headers: { host: '127.0.0.1:19387', 'sec-fetch-site': 'same-origin' } }), null);
+  assert.equal(fence({ headers: { host: '127.0.0.1:19387', 'sec-fetch-site': 'none' } }), null);
+  assert.equal(fence({ headers: { host: 'localhost:19387' } }), null);
+  assert.equal(fence({ headers: { host: '[::1]:19387' } }), null);
+  assert.equal(fence({ headers: { host: '127.0.0.1:19387', 'sec-fetch-site': 'cross-site' } }), 'E_ORIGIN');
+  assert.equal(fence({ headers: { host: '127.0.0.1:19387', 'sec-fetch-site': 'same-site' } }), 'E_ORIGIN');
   assert.equal(
     fence({ headers: { origin: 'http://127.0.0.1:9999', host: '127.0.0.1:19387' } }),
     'E_ORIGIN',
@@ -60,7 +61,23 @@ test('fence：同源放行、跨站拒绝、Origin 与 Host 不一致拒绝', ()
     fence({ headers: { origin: 'http://127.0.0.1:19387', host: '127.0.0.1:19387' } }),
     null,
   );
-  assert.equal(fence({ headers: { origin: 'not a url', host: 'x' } }), 'E_ORIGIN');
+  assert.equal(fence({ headers: { origin: 'not a url', host: '127.0.0.1:19387' } }), 'E_ORIGIN');
+});
+
+test('fence：Host 非回环一律拒绝（DNS rebinding）', () => {
+  // rebinding 场景：攻击者域名解析到 127.0.0.1，Host 与 Origin 完全一致，
+  // Sec-Fetch-Site 也是 same-origin —— 只有 Host 白名单能挡住它。
+  assert.equal(
+    fence({ headers: { host: 'evil.example', origin: 'http://evil.example', 'sec-fetch-site': 'same-origin' } }),
+    'E_ORIGIN',
+  );
+  assert.equal(
+    fence({ headers: { host: 'evil.example:19387', origin: 'http://evil.example:19387', 'sec-fetch-site': 'none' } }),
+    'E_ORIGIN',
+  );
+  assert.equal(fence({ headers: { host: '192.168.1.10:19387' } }), 'E_ORIGIN');
+  // 缺少 Host 视为不可信（HTTP/1.1 客户端一定会带）。
+  assert.equal(fence({ headers: {} }), 'E_ORIGIN');
 });
 
 test('跨站请求返回 403 且信封结构正确', async () => {
@@ -174,10 +191,21 @@ test('POST /flush 触发落盘并返回写入行数', async () => {
   assert.equal(store.dirtyCount, 0);
 });
 
-test('POST /reset 清空后立即落盘', async () => {
+test('POST /reset 需要确认令牌，带令牌才清空并立即落盘', async () => {
   const { store, routes } = makeRoutes();
   noteToolCall(store, { day: DAY, tool: 'read', cap: 'native', capKey: 'read', ts: NOW });
-  const { json } = await request(routes, { method: 'POST', url: `${API_PREFIX}/reset`, headers: sameOrigin });
+
+  // 没有 confirm 一律拒绝：一步清空不可撤销，不能被误触/跨站打穿。
+  const refused = await request(routes, { method: 'POST', url: `${API_PREFIX}/reset`, headers: sameOrigin });
+  assert.equal(refused.status, 400);
+  assert.equal(refused.json.error.code, 'E_CONFIRM');
+  assert.equal(store.state.daily.size, 1);
+
+  const wrong = await request(routes, { method: 'POST', url: `${API_PREFIX}/reset?confirm=nope`, headers: sameOrigin });
+  assert.equal(wrong.status, 400);
+  assert.equal(store.state.daily.size, 1);
+
+  const { json } = await request(routes, { method: 'POST', url: `${API_PREFIX}/reset?confirm=RESET`, headers: sameOrigin });
   assert.equal(json.value.reset, true);
   assert.equal(store.state.daily.size, 0);
 });
@@ -213,4 +241,23 @@ test('端点清单非空且形如 [method, path, 说明]', () => {
     assert.match(item[1], /^\//);
     assert.equal(typeof item[2], 'string');
   }
+});
+
+test('REST /sessions 的 limit 收敛到统一上限（不再被任意放大）', async () => {
+  const { store, routes } = makeRoutes();
+  for (let i = 0; i < 60; i += 1) {
+    noteSessionFirstSeen(store, { id: `s${i}`, day: DAY, ts: NOW + i });
+  }
+
+  // 默认 20 条。
+  const def = await request(routes, { url: `${API_PREFIX}/sessions`, headers: sameOrigin });
+  assert.equal(def.json.value.length, 20);
+
+  // 超过上限时按 MAX_PAGE_SIZE(200) 收敛，而不是照单全收。
+  const huge = await request(routes, { url: `${API_PREFIX}/sessions?limit=1000000`, headers: sameOrigin });
+  assert.equal(huge.json.value.length, 60, '返回全部 60 条，但不会因为 limit 巨大而报错或放大');
+
+  // 非法值回退默认。
+  const bad = await request(routes, { url: `${API_PREFIX}/sessions?limit=abc`, headers: sameOrigin });
+  assert.equal(bad.json.value.length, 20);
 });

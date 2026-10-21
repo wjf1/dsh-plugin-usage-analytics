@@ -1,18 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { AnalyticsStore, TABLES, compositeKey, forgetDomain, keyPart, memoryDomain, openStore } from '../lib/store.js';
+import { AnalyticsStore, SCHEMA_VERSION, TABLES, compositeKey, forgetDomain, keyPart, memoryDomain, openStore } from '../lib/store.js';
 
 /** 造一个用内存 domain 支撑的 store（等价真实 storageDomain）。 */
-function makeStore() {
-  const spec = {
-    name: 'plugin_analytics_test',
+function makeStore(spec = 'plugin_analytics_test') {
+  const definition = typeof spec === 'string' ? { name: spec } : spec;
+  const built = {
+    name: definition.name ?? 'plugin_analytics_test',
     version: 1,
     tables: Object.fromEntries(Object.entries(TABLES).map(([key, value]) => [key, { valueSchema: value }])),
-    global: { schema: TABLES.meta, initial: TABLES.meta.parse({}) },
+    global: {
+      schema: TABLES.meta,
+      initial: definition.initial ?? TABLES.meta.parse({}),
+    },
   };
-  const domain = memoryDomain(spec);
-  return { store: new AnalyticsStore({ domainName: spec.name, domain }).load(), domain, spec };
+  const domain = memoryDomain(built);
+  return { store: new AnalyticsStore({ domainName: built.name, domain }).load(), domain, spec: built };
+}
+
+/** 预置一份落盘的 meta，再走正常的 load 路径（模拟从旧数据启动）。 */
+function makeStoreWithGlobal(initial) {
+  return makeStore({ name: 'plugin_analytics_schema_' + Math.random().toString(36).slice(2, 8), initial });
 }
 
 test('put 标脏、flush 落盘、二次 flush 不重复写', async () => {
@@ -149,5 +158,26 @@ test('表名与 domain 名符合宿主 UNIT_NAME_RE 命名规则', () => {
   for (const profile of ['default', 'desktop', 'work']) {
     assert.match(`plugin_analytics_${profile}`, UNIT_NAME_RE);
   }
+});
+
+test('meta 带上 schemaVersion：无版本标记的老数据会被补上', () => {
+  // 预置一份"v1 之前"的落盘数据：没有 schemaVersion，也没有 v。
+  const { store } = makeStoreWithGlobal({ installId: 'abc', cursors: { s1: 5 }, sampled: 3 });
+  assert.equal(store.meta.schemaVersion, SCHEMA_VERSION);
+  assert.equal(store.meta.installId, 'abc', '老字段不能被迁移丢掉');
+  assert.equal(store.meta.cursors.s1, 5);
+  assert.equal(store.meta.sampled, 3);
+});
+
+test('meta 读到更高版本的数据时按当前版本处理，不丢字段', () => {
+  const { store } = makeStoreWithGlobal({
+    schemaVersion: SCHEMA_VERSION + 5,
+    v: SCHEMA_VERSION + 5,
+    installId: 'x',
+    cursors: { s9: 2 },
+  });
+  assert.equal(store.meta.schemaVersion, SCHEMA_VERSION, '内存里统一按当前版本处理');
+  assert.equal(store.meta.installId, 'x');
+  assert.equal(store.meta.cursors.s9, 2);
 });
 

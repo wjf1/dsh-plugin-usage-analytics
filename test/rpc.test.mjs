@@ -226,9 +226,13 @@ test('export：json 与 csv 两种格式带文件名与 mime', async () => {
   assert.equal(bad.json.error.code, 'E_RANGE');
 });
 
-test('reset：清空并落盘', async () => {
+test('reset：缺 confirm 拒绝，带 confirm 才清空并落盘', async () => {
   const { routes, store, calls } = makeRoutes();
-  const { json } = await rpc(routes, 'reset', {});
+  const refused = await rpc(routes, 'reset', {});
+  assert.equal(refused.json.error.code, 'E_CONFIRM');
+  assert.notEqual(store.state.daily.size, 0);
+
+  const { json } = await rpc(routes, 'reset', { confirm: 'RESET' });
   assert.equal(json.value.ok, true);
   assert.equal(store.state.daily.size, 0);
   assert.equal(calls.flush, 1);

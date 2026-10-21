@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { createMemoryStore } from '../lib/store.js';
 import { Collector } from '../lib/collector.js';
-import { resolveConfig, dayKey } from '../lib/shared.js';
+import { classifyTool, resolveConfig, dayKey } from '../lib/shared.js';
 import { ev, makeCtx, makeSession } from './harness.mjs';
 
 const NOW = new Date(2026, 9, 20, 15, 0, 0).getTime();
@@ -176,4 +176,75 @@ test('单日事件超限后只记 dropped，不再累加调用', () => {
   collector.consume(session, ev.toolCall(0, NOW, 'pwsh', 'c1'));
   assert.equal(collector.stats.dropped, 1);
   assert.equal(store.row('daily', dayKey(NOW)).toolCalls, 0);
+});
+
+test('selfExclude=false 时本插件自身的调用照常计入', () => {
+  const own = ev.toolCall(0, NOW, 'mcp__dsh-plugin-usage-analytics__report', 'c1');
+  own.source = 'dsh-plugin-usage-analytics';
+  const { ctx, store, collector } = setup({ config: { selfExclude: false }, sessionEvents: [own] });
+  collector.attach();
+  ctx.emit('session/created', makeSession('session-abc', [own]));
+
+  assert.equal(store.row('daily', dayKey(NOW)).toolCalls, 1);
+  assert.equal(collector.stats.selfExcluded, 0);
+});
+
+test('selfExclude=true 时排除本插件自身的调用（两种可判定标记）', () => {
+  // 标记一：事件归属字段等于插件包名。
+  const bySource = ev.toolCall(0, NOW, 'report', 'c1');
+  bySource.source = 'dsh-plugin-usage-analytics';
+  // 标记二：工具名落在本插件的 MCP 命名空间。
+  const byTool = ev.toolCall(1, NOW, 'mcp__dsh-plugin-usage-analytics__summary', 'c2');
+  // 对照：普通工具必须照常计入。
+  const normal = ev.toolCall(2, NOW, 'read', 'c3');
+  const normalResult = ev.toolResult(3, NOW + 10, 'c3', true);
+
+  const events = [bySource, byTool, normal, normalResult];
+  const { ctx, store, collector } = setup({ config: { selfExclude: true }, sessionEvents: events });
+  collector.attach();
+  ctx.emit('session/created', makeSession('session-abc', events));
+
+  const daily = store.row('daily', dayKey(NOW));
+  assert.equal(daily.toolCalls, 1, '只有非本插件的调用被计数');
+  assert.equal(store.row('tool_daily', `${dayKey(NOW)}__read`).calls, 1);
+  assert.equal(store.row('tool_daily', `${dayKey(NOW)}__report`), undefined, '自身调用不应建行');
+  assert.equal(collector.stats.selfExcluded, 2);
+});
+
+test('工具参数只在截断范围内解析（不再整串 JSON.parse 卡住事件循环）', () => {
+  // 正常的小参数照常拿到技能名。
+  assert.equal(classifyTool('skill', '{"name":"weekly-report"}').capKey, 'weekly-report');
+
+  // name 落在 4KB 之外：证明没有退回到整串解析（否则会读出 late-skill）。
+  const far = `{"pad":"${'x'.repeat(5000)}","name":"late-skill"}`;
+  assert.equal(classifyTool('skill', far).capKey, 'unknown');
+
+  // 几 MB 的参数也不会被整串解析。
+  const huge = JSON.stringify({ name: 'big-skill', blob: 'y'.repeat(4 * 1024 * 1024) });
+  const started = Date.now();
+  assert.equal(classifyTool('skill', huge).capKey, 'big-skill');
+  assert.ok(Date.now() - started < 200, '截断后解析必须远快于整串解析');
+
+  // 非 skill 工具根本不解析参数。
+  assert.equal(classifyTool('read', huge).capKey, 'read');
+});
+
+test('采样成对：请求被抽掉时配对的响应一起丢，不产生孤儿结果', () => {
+  const events = [];
+  for (let i = 0; i < 200; i += 1) {
+    events.push(ev.toolCall(i * 2, NOW, 'pwsh', `c${i}`));
+    events.push(ev.toolResult(i * 2 + 1, NOW + 10, `c${i}`, true));
+  }
+  const { store, collector } = setup({ sessionEvents: events, config: { sampleRate: 0.5 } });
+  collector.attach();
+
+  const daily = store.row('daily', dayKey(NOW));
+  assert.ok(daily.toolCalls > 0 && daily.toolCalls < 200, `调用数应被抽稀，实际 ${daily.toolCalls}`);
+  // 成对抽稀的核心断言：每个计入的 call 都有配对的 result。
+  // 独立采样时孤儿 result 会把 msSamples 抬到调用数之上，并把 ok:true 的结果
+  // 记成不认识工具的失败。
+  assert.equal(daily.msSamples, daily.toolCalls, '每条计入的调用都应有配对结果');
+  assert.equal(daily.toolErrors, 0, '孤儿结果会被当成错误，这里必须为 0');
+  assert.equal(collector.pendingCount, 0);
+  assert.equal(collector.droppedCalls.size, 0, '被抽掉的占位应随配对清除');
 });

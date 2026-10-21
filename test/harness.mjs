@@ -158,12 +158,15 @@ export function makeRes() {
 
 /**
  * 造一个可读请求体。
+ *
+ * 默认带一个回环 Host：真实浏览器一定会发 Host，而围栏要求 Host 必须是
+ * 回环名（防 DNS rebinding），不带 Host 的请求在真机上根本不存在。
  * @param {{method?: string, url?: string, headers?: Record<string, string>, body?: string}} [options]
  */
 export function makeReq({ method = 'GET', url = '/', headers = {}, body } = {}) {
   const stream = Readable.from(body === undefined ? [] : [Buffer.from(body, 'utf8')]);
   stream.method = method;
   stream.url = url;
-  stream.headers = headers;
+  stream.headers = { host: '127.0.0.1:19387', ...headers };
   return stream;
 }

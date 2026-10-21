@@ -2,6 +2,26 @@
 
 本文件记录本插件每个版本的变更。日期格式 `YYYY-MM-DD`。
 
+## [Unreleased]
+
+### 修复
+
+- **`selfExclude` 开关一直无效**（`lib/collector.js`）：README 与配置 schema 都承诺"排除本插件自身的调用"，但采集器全文没有引用该键，开关完全没接线。现在采集入口按可判定标记过滤（事件的归属字段等于插件包名，或工具名落在本插件的 MCP 命名空间），并把过滤量计入 `collector.stats.selfExcluded`。
+- **围栏可被 DNS rebinding 绕过**（`lib/routes.js` 的 `fence`）：此前只校验 `Host` 与 `Origin` 一致，攻击者把自有域名解析到 `127.0.0.1` 时两者天然一致，`Sec-Fetch-Site` 也是 `same-origin`，围栏形同虚设。现在先校验 `Host` 必须是回环名（`127.0.0.1` / `localhost` / `[::1]`），其余一律 403。
+- **`POST /reset` 一步清空且无服务端确认**（`lib/routes.js`）：只剩前端 `window.confirm`，内嵌 webview 可屏蔽、自动化脚本可绕过。现在要求 `?confirm=RESET`，缺失或错误回 `E_CONFIRM`；`lib/client.js` 的面板按钮已同步带上令牌。JSON-RPC 的 `reset` 同样要求 `params.confirm === 'RESET'`（与既有的 `data.delete` 一致）。
+- **采样口径与文档不符**（`lib/collector.js`）：README 写"成对抽稀"，实现却是请求与响应各自独立采样，低采样率下会出现"有结果没请求"的孤儿，工具耗时与错误率都被拉偏。现在请求被抽掉时记住 callId，配对的响应一起丢；请求被保留时响应必定保留。
+- **`/sessions` 的 `limit` 默认值从未生效**（`lib/routes.js`）：`num(q.get('limit'), 20)` 在缺参数时得到 `Number(null) === 0`，实际永远只返回 1 条。现在按共享常量 `DEFAULT_SESSIONS_LIMIT` 兜底。
+- **REST 与 JSON-RPC 的分页上限不一致**（`lib/shared.js` / `lib/routes.js` / `lib/rpc.js`）：RPC 侧有 `PAGE_SIZE`/`MAX_EVENT_LIMIT` 收敛，REST `/sessions` 完全没有上限，`?limit=1000000` 照单全收。现在统一到 `PAGE_SIZE` / `MAX_PAGE_SIZE` / `DEFAULT_SESSIONS_LIMIT`。
+- **`collect` 改动需要重载插件才生效**（`lib/index.js`）：订阅在装配期一次性决定。现在 `POST /settings` 改到该键时立即重订阅/退订，面板开关即时生效。
+- **超大工具参数整串 `JSON.parse` 会卡住宿主事件循环**（`lib/shared.js` 的 `classifyTool`）：只为了取 `skill` 的 `name`，却把几 MB 的 arguments 全量解析。现在只扫描前 4KB，解析失败再退化为字段提取。
+- **locale 缺 key 会让界面出现空白**（`lib/client.js`）：宿主 `props.t` 返回空串或原样返回 key 时没有兜底。现在统一回退到内置字典（中文 → 英文 → key）。
+
+### 新增
+
+- 面板工具栏增加「导出 NDJSON」按钮：直接复用 REST `/export`（带 `content-disposition`，交给浏览器当附件下载），不必在客户端再写一套 CSV 格式化。
+- `tools/check-locale.mjs` 与 CI：校验 `locale/*.json` 键集一致且无空值，`npm run check` 做全量语法检查。
+- 数据 schema 增加 `schemaVersion`（`lib/store.js` 的 `SCHEMA_VERSION` + `migrateMeta`）：老数据自动补标记，读到更高版本的数据时保留原样并告警，为后续字段变更留下迁移落点；`/diagnostics` 的 `meta.schemaVersion` 可直接看到。
+
 ## [0.1.1] - 2026-10-21
 
 首个公开发布版本（此前只存在于本地目录，未进 git）。本版把 0.1.1 的代码定版，并补齐全套开源发布物料：git 仓库、双语 README、HANDOFF、Release 与插件市场收录。

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { apply, detectProfile, name, resolveProfileName } from '../lib/index.js';
 import { forgetDomain, memoryDomain } from '../lib/store.js';
 import { API_PREFIX, PLUGIN_NAME, dayKey } from '../lib/shared.js';
-import { ev, makeCtx, makeSession } from './harness.mjs';
+import { ev, makeCtx, makeReq, makeRes, makeSession } from './harness.mjs';
 
 const NOW = new Date(2026, 9, 20, 15, 0, 0).getTime();
 
@@ -250,4 +250,28 @@ test('会话事件写入后按本地日期汇总到今日行', async () => {
   assert.equal(snapshot.today.toolCalls, 3);
   assert.equal(snapshot.today.toolErrors, 1);
   assert.equal(snapshot.sessions, 1);
+});
+
+test('改 collect 立即生效：无需重载插件', async () => {
+  const { ctx } = await setup({ collect: true });
+  assert.equal(ctx.listeners.has('session/event'), true);
+
+  const post = async (body) => {
+    const res = makeRes();
+    await ctx.routes[0].handler(makeReq({
+      method: 'POST',
+      url: `${API_PREFIX}/settings`,
+      headers: { 'sec-fetch-site': 'same-origin' },
+      body: JSON.stringify(body),
+    }), res);
+    return JSON.parse(res.body);
+  };
+
+  const off = await post({ collect: false });
+  assert.equal(off.ok, true);
+  assert.equal(ctx.listeners.has('session/event'), false, '关闭采集应立即退订');
+
+  const on = await post({ collect: true });
+  assert.equal(on.ok, true);
+  assert.equal(ctx.listeners.has('session/event'), true, '重新开启应立即订阅');
 });

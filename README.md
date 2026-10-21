@@ -13,7 +13,7 @@
 - **脏表才写**：内存聚合 → 每 `flushIntervalMs`（默认 10s）只把脏表落盘，写放大可控。
 - **可降级**：取不到 `storageDomain` 时自动切内存档，面板与接口照常工作，只是重启即丢（`diagnostics.storage.kind === 'memory'`）。
 - **可关**：`collect:false` 停止采集，`selfExclude` 排除本插件的工具调用，`retentionDays` 控制保留天数（同时裁剪内存与落盘）。
-- **围栏与限流**：`Sec-Fetch-Site` + `Origin`/`Host` 一致性校验，写方法面每秒 10 次上限，请求体 64KB 上限。
+- **围栏与限流**：`Host` 必须是回环名（`127.0.0.1`/`localhost`/`[::1]`，挡 DNS rebinding）+ `Sec-Fetch-Site` + `Origin`/`Host` 一致性校验，写方法面每秒 10 次上限，请求体 64KB 上限。
 
 ## 安装
 
@@ -104,7 +104,11 @@ dsh plugin --profile <profile> add github:wjf1/dsh-plugin-usage-analytics
 
 ### REST 便捷端点（面板使用）
 
-`GET /`、`/overview?days=`、`/series?days=`、`/sessions?limit=`、`/tools?days=`、`/tool?name=&days=`、`/settings`、`/diagnostics`、`/export`（NDJSON 下载）；`POST /settings`、`/flush`、`/reset`。与 JSON-RPC 共用同一批聚合函数。
+`GET /`、`/overview?days=`、`/series?days=`、`/sessions?limit=`、`/tools?days=`、`/tool?name=&days=`、`/settings`、`/diagnostics`、`/export`（NDJSON 下载）；`POST /settings`、`/flush`、`/reset?confirm=RESET`。与 JSON-RPC 共用同一批聚合函数。
+
+> 分页上限统一由 `lib/shared.js` 的 `PAGE_SIZE` / `MAX_PAGE_SIZE` 定义（REST 与 JSON-RPC 共用），`/sessions` 默认 20 条。
+>
+> `POST /reset` 与 RPC 的 `reset` 都必须显式带确认（`?confirm=RESET` / `params.confirm:"RESET"`），否则回 `E_CONFIRM`。
 
 ## 存储
 
@@ -157,7 +161,7 @@ A local-only usage analytics plugin for DeepSeek Harness. It subscribes to sessi
 - **Write amplification control**: in-memory aggregation, dirty tables flushed every `flushIntervalMs` (default 10s).
 - **Graceful degradation**: falls back to an in-memory store when `storageDomain` is unavailable (`diagnostics.storage.kind === 'memory'`).
 - **Switches**: `collect`, `selfExclude`, `sampleRate`, `retentionDays`.
-- **Fence + rate limit**: `Sec-Fetch-Site`/`Origin` checks, 10 writes per second, 64KB body cap.
+- **Fence + rate limit**: the `Host` header must be a loopback name (`127.0.0.1`/`localhost`/`[::1]` — this is what stops DNS rebinding), plus `Sec-Fetch-Site`/`Origin` checks, 10 writes per second, 64KB body cap.
 
 > Image note: `icon.svg` (32×32) ships with the package and is used by both the sidebar and the plugin list. Panel screenshots must be taken in a local browser after the host has loaded the plugin; see the "validation status" section of [`docs/design-mapping.md`](docs/design-mapping.md).
 
@@ -192,7 +196,7 @@ Keys are written under `config` in `cordis.patch.yml` (whitelisted keys are also
 
 ## API
 
-`POST /dsh-plugin-usage-analytics/api/` with `{method, params}` — 18 design methods: `overview`, `plugins`, `plugin`, `capabilities`, `env`, `series`, `events`, `settings.get/set`, `consent.get/set`, `report.preview/now/clear`, `data.delete`, `export`, `diagnostics`, `reset`. Convenience REST GETs back the sidebar panel. Requests are gated by `Sec-Fetch-Site` and `Origin`/`Host` consistency, capped at 10 writes per second and 64KB per body.
+`POST /dsh-plugin-usage-analytics/api/` with `{method, params}` — 18 design methods: `overview`, `plugins`, `plugin`, `capabilities`, `env`, `series`, `events`, `settings.get/set`, `consent.get/set`, `report.preview/now/clear`, `data.delete`, `export`, `diagnostics`, `reset`. Convenience REST GETs back the sidebar panel. Requests are gated by a loopback `Host` (blocks DNS rebinding) plus `Sec-Fetch-Site` and `Origin`/`Host` consistency, capped at 10 writes per second and 64KB per body. Both the REST `/reset?confirm=RESET` endpoint and the RPC `reset` method require an explicit confirmation.
 
 ## Validation status (real host)
 
