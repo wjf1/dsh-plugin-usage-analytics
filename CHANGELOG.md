@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **面板实拍截图入仓**：`assets/panel-usage.png`（2026-11-01 于 DSH 0.2.1-rc.3 真机截取，已裁除侧栏等敏感区域）+ 根目录 `screenshots.json` 声明；README 中英双语验证状态表、配图说明与 `docs/design-mapping.md` 的「面板肉眼验收」从 ⚠️ 翻绿为 ✅。
+
 ### 修复
 
 - **`selfExclude` 开关一直无效**（`lib/collector.js`）：README 与配置 schema 都承诺"排除本插件自身的调用"，但采集器全文没有引用该键，开关完全没接线。现在采集入口按可判定标记过滤（事件的归属字段等于插件包名，或工具名落在本插件的 MCP 命名空间），并把过滤量计入 `collector.stats.selfExcluded`。

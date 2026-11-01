@@ -159,6 +159,6 @@
   - `POST /`（JSON-RPC `diagnostics`）→ 200 统一信封。
   - 落盘证据：`C:\Users\admin\.dsh\storages\plugin_analytics_default.json`（14467B）。
 - ✅ 客户端注册证据：GUI 首页 HTML（510499B）的 `__DSH_BOOT__` 模块清单里含 `dsh-plugin-usage-analytics/client.js`。
-- ⚠️ **面板肉眼外观**：本会话不具备浏览器控制权、按官方 skill 要求也不得自起浏览器截图，侧栏入口与面板的视觉验收留给用户在 GUI 里确认。
-- ⚠️ **版本差**：运行中的宿主实例加载的是 0.1.0（`safeGet` 修复已包含在内，真机数据即来自它）；0.1.1 的 `detectProfile`/`profileName`/`VERSION` 需下次重启生效。
+- ✅ **面板肉眼外观（2026-11-01 闭环）**：宿主重启加载 0.1.1 后，侧栏「用量分析」面板实拍确认——6 张 KPI 卡（工具调用 127 / 错误 0 / 平均耗时 4.2s / 会话 1 / tokens 1.5M in · 28.5k out）、逐日趋势、Top 工具、能力调用、采集设置全部正常渲染，截图入仓 `assets/panel-usage.png`。
+- ✅ **版本差（2026-11-01 消除）**：宿主重启后 0.1.1 的 `detectProfile`/`profileName`/`VERSION` 已生效（`GET /status` 返回 `version:0.1.1`）。另发现并修复装机侧问题：该包此前被 npm prune（登记在 bundles 但 dependencies 缺失导致实体丢失），已在 profile 的 dependencies 补 `^0.1.1` 防复发。
 

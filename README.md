@@ -4,7 +4,7 @@
 
 ![插件图标](icon.svg)
 
-> 配图说明：上图是本插件随包发布的 `icon.svg`（32×32，侧栏与插件列表共用）。面板截图需要在宿主加载插件后由本机浏览器截取，见 [`docs/design-mapping.md`](docs/design-mapping.md) 的「验证状态」一节。
+> 配图说明：上图是本插件随包发布的 `icon.svg`（32×32，侧栏与插件列表共用）。面板实拍见下方「面板」一节（`assets/panel-usage.png`，2026-11-01 于 DSH 0.2.1-rc.3 真机截取），验收结论见 [`docs/design-mapping.md`](docs/design-mapping.md) 的「验证状态」一节。
 
 ## 特性
 
@@ -60,9 +60,11 @@ dsh plugin --profile <profile> add github:wjf1/dsh-plugin-usage-analytics
 | 存储落盘 | ✅ | `storage.kind=domain`、`writes=158`、`flushes=32`、`C:\Users\admin\.dsh\storages\plugin_analytics_default.json` 14KB |
 | JSON-RPC 面 | ✅ | `POST /` 的 `diagnostics` 返回统一信封 |
 | 客户端包注册 | ✅ | GUI boot 清单含 `dsh-plugin-usage-analytics/client.js` |
-| 面板肉眼验收 | ⚠️ | 需重启宿主后在 GUI 侧栏确认（会话内无浏览器控制权） |
+| 面板肉眼验收 | ✅ | 2026-11-01 于 DSH 0.2.1-rc.3 GUI 侧栏实拍确认：6 张 KPI 卡、逐日趋势、Top 工具、能力调用、采集设置全部渲染正常（`assets/panel-usage.png`） |
 
 ## 面板
+
+![用量分析面板实拍](assets/panel-usage.png)
 
 侧栏入口「用量分析」，主面板包含：
 
@@ -163,7 +165,7 @@ A local-only usage analytics plugin for DeepSeek Harness. It subscribes to sessi
 - **Switches**: `collect`, `selfExclude`, `sampleRate`, `retentionDays`.
 - **Fence + rate limit**: the `Host` header must be a loopback name (`127.0.0.1`/`localhost`/`[::1]` — this is what stops DNS rebinding), plus `Sec-Fetch-Site`/`Origin` checks, 10 writes per second, 64KB body cap.
 
-> Image note: `icon.svg` (32×32) ships with the package and is used by both the sidebar and the plugin list. Panel screenshots must be taken in a local browser after the host has loaded the plugin; see the "validation status" section of [`docs/design-mapping.md`](docs/design-mapping.md).
+> Image note: `icon.svg` (32×32) ships with the package and is used by both the sidebar and the plugin list. A real host panel capture is available at `assets/panel-usage.png` (taken 2026-11-01 on DSH 0.2.1-rc.3); see the "validation status" section of [`docs/design-mapping.md`](docs/design-mapping.md).
 
 ## Install
 
@@ -208,7 +210,7 @@ Keys are written under `config` in `cordis.patch.yml` (whitelisted keys are also
 | Storage persisted | ✅ | `storage.kind=domain`, `writes=158`, `flushes=32`, a 14KB storage unit on disk |
 | JSON-RPC surface | ✅ | `POST /` `diagnostics` returns the standard envelope |
 | Client half registered | ✅ | GUI boot manifest lists `dsh-plugin-usage-analytics/client.js` |
-| Panel eyeball check | ⚠️ | Needs a host restart, then a look at the GUI sidebar |
+| Panel eyeball check | ✅ | Confirmed 2026-11-01 in the DSH 0.2.1-rc.3 GUI sidebar: KPI cards, daily trend, top tools, capability calls and collection settings all render (`assets/panel-usage.png`) |
 
 ## Development
 

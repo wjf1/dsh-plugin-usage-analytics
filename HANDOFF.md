@@ -47,11 +47,13 @@ dsh-plugin-usage-analytics/
 - **公开发布 v0.1.1**（2026-10-21）：建公开仓库 → 推 `main` → `git tag -a v0.1.1 -m "v0.1.1: 公开首个版本——本地用量与能力看板，75 条测试全绿"` → GitHub Release → 向 `awesome-dsh-plugin` 提收录 PR。
 - 发布配套：英文 README 扩写到与中文对等（配置表、API、验证状态、开发、限制、配图说明）；`package.json` 补 `repository`/`homepage`/`bugs`/`author`；新增 `.gitignore`；构建期 `.bak-*` 快照移出包目录（移到 `F:\AI\DeepSeek haness\workspace\_trash_20261021_usage-analytics`）。
 - README 推荐安装方式改为 `dsh plugin --profile <profile> add github:wjf1/dsh-plugin-usage-analytics`，手工 Junction 降为离线备选。
+- **真机验收闭环（2026-11-01）**：装机侧根因查明（包实体被 npm prune：bundles 有登记、dependencies 无条目）→ 装回 0.1.1 + 补依赖登记 → 宿主 0.2.1-rc.3 上侧栏「用量分析」面板全量渲染确认，`assets/panel-usage.png` 入仓 + `screenshots.json` 声明；README 中英验证状态表与 `docs/design-mapping.md` 的 ⚠️ 全部翻绿。
+- README 推荐安装方式改为 `dsh plugin --profile <profile> add github:wjf1/dsh-plugin-usage-analytics`，手工 Junction 降为离线备选。
 
 ## 5. 待办与下一步
 
-- [ ] 重启宿主后在 GUI 侧栏点开「用量分析」，确认面板渲染正常（当前唯一未完成的验收项，README 验证状态表里标 ⚠️）。
-- [ ] 面板截图：在宿主加载插件后截 1–3 张图，放进仓库并在 `screenshots.json` 里声明（约定要求放在自己仓库，路径相对、不得含 `..`）。
+- [x] 重启宿主后在 GUI 侧栏点开「用量分析」，确认面板渲染正常——**已完成（2026-11-01，DSH 0.2.1-rc.3）**：6 张 KPI 卡 / 趋势图 / Top 工具 / 能力调用 / 采集设置全部正常渲染。附带发现：本机 profile 里该包曾被 npm prune（bundles 登记了但 dependencies 缺失），已装回 0.1.1 并补 `^0.1.1` 依赖登记。
+- [x] 面板截图：**已完成（2026-11-01）**——`assets/panel-usage.png`（真机实拍，已裁除侧栏会话列表等敏感区域），`screenshots.json` 已声明。
 - [ ] 视市场评审反馈修正条目描述或分类（现为 `usage`）。
 - [ ] 可选：把 `plugins`/`env`/`events`/`report` 四个降级方法补回真实数据模型（见 `docs/design-mapping.md`）。
 
