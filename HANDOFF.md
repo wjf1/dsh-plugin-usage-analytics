@@ -7,11 +7,11 @@
 ## 1. 项目概况与当前状态
 
 - 目标：按设计 v1.0 实现一个可运行的 DSH 用量分析插件（采集 → 聚合 → 面板/HTTP 查询）。
-- 当前状态（2026-10-21）：**0.1.1 定版、已公开发布为 `v0.1.1`，单元测试 75/75 通过、真 HTTP 栈自检 10/10、已装入 desktop profile 并在真宿主里跑通**。
+- 当前状态（2026-11-08）：**0.1.2 已定版发版（0.1.1 后面板截图入仓 + selfExclude/围栏/采样等 9 项修复），测试全绿。上一记录（2026-10-21）：0.1.1 定版、已公开发布为 `v0.1.1`，单元测试 75/75 通过、真 HTTP 栈自检 10/10、已装入 desktop profile 并在真宿主里跑通**。
   - 真宿主证据（`http://127.0.0.1:53853`，用持久 secret 自签 cookie）：`GET /` → `ready:true`；`GET /overview?days=7` → 真实数据（1181 次工具调用 / 22 次错误 / 4 个会话 / tokensIn 3,354,030 / avgMs 3505）；`GET /diagnostics` → `storage.kind=domain`、domain `plugin_analytics_default`、`writes=158`、`flushes=32`；`POST /` 的 JSON-RPC `diagnostics` 200。
   - 客户端包已出现在宿主 boot 清单里（GUI HTML 的 `plugins/??…` 列表含 `dsh-plugin-usage-analytics/client.js`），说明 `dsh.client` 注册生效；侧栏入口与面板的肉眼验收仍建议重启后由用户确认一次。
   - **注意版本差**：运行中的宿主实例加载的是 0.1.0 代码（safeGet 修复已在里面，已实测可用）；0.1.1 新增的 `detectProfile` / `profileName` / `VERSION` 需要下次重启才生效，届时 domain 名会从 `plugin_analytics_default` 变成 `plugin_analytics_desktop`（旧文件保留，不影响新数据）。
-- 版本：`0.1.1`；许可 MIT。
+- 版本：`0.1.2`；许可 MIT。
 
 ## 2. 技术栈与运行基线
 
