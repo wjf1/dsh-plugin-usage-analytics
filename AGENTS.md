@@ -10,6 +10,8 @@ DSH（DeepSeek Harness）插件用量与能力看板：本地采集会话事件�
 - 技术栈：纯 Node ESM JavaScript（`lib/*.js`，非 TypeScript），**零运行时依赖、测试也没有 devDependencies**；Node >= 22，engines 要求 `dsh >= 0.2.0`。
 - 形态：DSH bundle 插件（`cordis.patch.yml` + `dsh` manifest），web 面板经 `@deepseek-ai/dsh-client-locale` / `-ui-slots` 注入（platform web，immediately）。
 - 架构要点：`lib/index.js` apply 装配 setup(scope)、服务发布、路由注册与生命周期；`routes.js` 提供 12 个 REST 便捷端点，`rpc.js` 提供设计 §7.5 的 18 个 JSON-RPC 方法 + 信封；`store.js` 含降级内存档（无 storageDomain 时可用）。
+- 数据流：会话事件 → `collector.js`（白名单过滤 + 游标续读 + fork 边界处理 + 历史回填，采集回调内禁止 I/O）→ `store.js` 内存模型标脏 → 周期 flush 只写脏行（脏表为空完全跳过）→ `aggregate.js` 增量聚合出日表 → 面板 / REST / RPC 三路查询。
+- 设计映射与降级口径见 `docs/design-mapping.md`（如 `plugins`/`env`/`events`/`report` 四个方法当前是降级实现，补真实数据模型前不要宣称已有数据）。
 - 关键目录：`lib/store.js`（内存模型 + 脏行定时 flush 落盘）、`lib/collector.js`（采集，禁止 I/O 热路径）、`lib/aggregate.js`（日表聚合）、`lib/routes.js`（HTTP + 围栏）、`lib/rpc.js`（JSON-RPC）、`lib/client.js`（面板 UI）、`locale/*.json`（中英文案）、`test/`（node:test，6 个测试文件）、`tools/check-locale.mjs`（locale 缺 key 拦截）。
 
 ## 构建与测试命令
