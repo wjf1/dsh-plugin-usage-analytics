@@ -2,6 +2,12 @@
 
 本文件记录本插件每个版本的变更。日期格式 `YYYY-MM-DD`。
 
+## [Unreleased]
+
+### 新增
+
+- README 双语化（README.md 英文 + README.zh-CN.md 中文 + 首行互链）：原「中文主体 + 文内英文段」的单一 README.md 拆分为根目录两份对等文档——`README.md` 为英文版、`README.zh-CN.md` 为中文版（原中文内容迁入），英文版补齐 Panel / Storage / HTTP API 方法表等章节与中文版对齐，两文件首行管道互链（`English | [简体中文](README.zh-CN.md)` / `[English](README.md) | 简体中文`）。
+
 ## [0.1.2] - 2026-11-08
 
 ### 新增
