@@ -114,6 +114,49 @@ dsh plugin --profile <profile> add github:wjf1/dsh-plugin-usage-analytics
 >
 > `POST /reset` 与 RPC 的 `reset` 都必须显式带确认（`?confirm=RESET` / `params.confirm:"RESET"`），否则回 `E_CONFIRM`。
 
+## CLI 导出（`dsh-usage`）
+
+零依赖 CLI：把本地采集的日表导出为 JSONL / CSV（对标 ccusage 的消费形态）。不经过 DSH 宿主、不需要面板在线——直接读取落盘的存储快照：
+
+```bash
+# 按 profile 探测快照（默认 default：$DSH_HOME 或 ~/.dsh/storages/plugin_analytics_<profile>.json）
+dsh-usage jsonl --from 2026-11-01 --to 2026-11-30
+dsh-usage csv --profile desktop --out usage-11.csv
+
+# 显式指定快照文件（备份、测试夹具都能导）
+node bin/dsh-usage.mjs jsonl --file /path/to/plugin_analytics_default.json
+```
+
+参数：
+
+| 参数 | 含义 |
+|---|---|
+| `<jsonl\|csv>` | 输出格式；JSONL 每日一行，CSV 首行表头 + 每日一行（日期升序） |
+| `--from` / `--to` | 闭区间日期过滤（`YYYY-MM-DD`，含端点），缺省不限 |
+| `--out <file>` | 写入文件（stderr 提示写入天数）；缺省输出到 stdout |
+| `--file <path>` | 显式快照路径（single 布局 JSON），缺省按 `--profile` 探测 |
+| `--profile <name>` | 存储 profile 名（默认 `default`，多 profile 用它区分） |
+| `--home <dir>` | DSH 主目录（默认 `$DSH_HOME`，否则 `~/.dsh`） |
+
+退出码：0 成功；1 数据文件缺失 / 损坏（stderr 会列出同目录可用快照）；2 用法错误。`package.json` 已声明 `bin.dsh-usage`，`npm link` 或全局安装后可直接用 `dsh-usage`，否则用 `node bin/dsh-usage.mjs` 等价。
+
+每行字段与 `daily` 存储表一致：
+
+| 字段 | 含义 |
+|---|---|
+| `day` | 本地日期 `YYYY-MM-DD` |
+| `events` | 当日消费的会话事件数 |
+| `toolCalls` / `toolErrors` | 工具调用数 / 失败数（"请求数"口径） |
+| `steps` / `turns` | 模型步数 / 对话回合数 |
+| `sessions` | 当日首见会话数 |
+| `tokensIn` / `tokensOut` | token 计数 |
+| `ms` / `msSamples` / `maxMs` | 工具耗时总和 / 样本数 / 最大值（均值 = `ms / msSamples`） |
+| `panels` / `commands` | 面板打开 / 命令调用次数 |
+| `mcp` / `skills` | MCP / skill 能力调用次数 |
+| `dropped` | 丢弃事件数（采样 / 单日上限） |
+
+JSONL 形态与 REST `/export` 的 NDJSON 一致（`{"kind":"daily","day":"2026-10-28","events":510,"toolCalls":127,...}`）；数据解析直接复用 `lib/store.js`（schema 归一化 + meta 迁移），与面板 / HTTP 查询同源。
+
 ## 存储
 
 每个 profile 一个 domain：`plugin_analytics_<profile 名>`（`storageDomain.open`），默认 `layout: 'single'`，落盘位置由宿主的 `DSH_HOME/storages` 决定。表：
@@ -137,10 +180,10 @@ dsh plugin --profile <profile> add github:wjf1/dsh-plugin-usage-analytics
 
 ```bash
 node --test test/store.test.mjs test/aggregate.test.mjs test/collector.test.mjs \
-           test/routes.test.mjs test/rpc.test.mjs test/index.test.mjs
+           test/routes.test.mjs test/rpc.test.mjs test/index.test.mjs test/dsh-usage.test.mjs
 ```
 
-75 条测试全通过。`node --test test/`（只给目录）在 Windows 上会报 `Cannot find module ...\test`，必须显式列文件。
+94 条测试全通过。`node --test test/`（只给目录）在 Windows 上会报 `Cannot find module ...\test`，必须显式列文件。
 
 ## 已知限制
 

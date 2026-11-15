@@ -6,6 +6,7 @@
 
 ### 新增
 
+- **新增 `dsh-usage` CLI 导出工具（`bin/dsh-usage.mjs`）**：把本地采集的日表导出为 JSONL / CSV（对标 ccusage 的 CLI 消费形态），不经宿主、直接读取落盘的存储快照（single 布局 JSON）。签名 `dsh-usage <jsonl|csv> [--from <date>] [--to <date>] [--out <file>] [--file <path>] [--profile <name>] [--home <dir>]`：JSONL 每日一行（与 REST `/export` 的 NDJSON 同形态）、CSV 首行表头 + 每日一行（日期升序）；`--from/--to` 为闭区间过滤，`--out` 写文件否则输出 stdout；退出码 0/1/2 = 成功 / 数据文件缺失或损坏 / 用法错误。数据解析复用 `lib/store.js`（schema 归一化 + meta 迁移），与面板 / HTTP 查询同源；零第三方依赖。`package.json` 声明 `bin.dsh-usage` 并把 `bin/` 加入 `files`；新增 `test/dsh-usage.test.mjs`（10 条用例：参数解析、JSONL/CSV 渲染、快照加载与日期过滤、子进程端到端），测试总数 84 → 94。README 中英双语补「CLI 导出」小节。
 - README 双语化（README.md 英文 + README.zh-CN.md 中文 + 首行互链）：原「中文主体 + 文内英文段」的单一 README.md 拆分为根目录两份对等文档——`README.md` 为英文版、`README.zh-CN.md` 为中文版（原中文内容迁入），英文版补齐 Panel / Storage / HTTP API 方法表等章节与中文版对齐，两文件首行管道互链（`English | [简体中文](README.zh-CN.md)` / `[English](README.md) | 简体中文`）。
 
 ## [0.1.2] - 2026-11-08

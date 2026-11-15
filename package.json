@@ -13,6 +13,9 @@
   "author": "wjf1 (https://github.com/wjf1)",
   "type": "module",
   "main": "lib/index.js",
+  "bin": {
+    "dsh-usage": "./bin/dsh-usage.mjs"
+  },
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
@@ -21,6 +24,7 @@
     "./package.json": "./package.json"
   },
   "files": [
+    "bin",
     "lib",
     "locale/*.json",
     "icon.svg",
@@ -58,7 +62,7 @@
   ],
   "license": "MIT",
   "scripts": {
-    "test": "node --test test/store.test.mjs test/aggregate.test.mjs test/collector.test.mjs test/routes.test.mjs test/rpc.test.mjs test/index.test.mjs",
-    "check": "node --check lib/index.js && node --check lib/routes.js && node --check lib/rpc.js && node --check lib/collector.js && node --check lib/shared.js && node --check lib/store.js && node --check lib/aggregate.js && node --check lib/client.js"
+    "test": "node --test test/store.test.mjs test/aggregate.test.mjs test/collector.test.mjs test/routes.test.mjs test/rpc.test.mjs test/index.test.mjs test/dsh-usage.test.mjs",
+    "check": "node --check lib/index.js && node --check lib/routes.js && node --check lib/rpc.js && node --check lib/collector.js && node --check lib/shared.js && node --check lib/store.js && node --check lib/aggregate.js && node --check lib/client.js && node --check bin/dsh-usage.mjs"
   }
 }

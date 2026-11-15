@@ -28,6 +28,8 @@ dsh-plugin-usage-analytics/
 ├─ cordis.patch.yml      # insert 一个 bundle，带 !!js 防双挂表达式
 ├─ icon.svg              # 展示图标（≤256KiB）
 ├─ locale/{zh,en}.json   # 插件列表展示元数据 meta.title / meta.description
+├─ bin/
+│  └─ dsh-usage.mjs      # CLI 导出（JSONL/CSV）：读落盘快照，复用 lib/store.js 解析
 ├─ lib/
 │  ├─ index.js           # apply：装配 setup(scope)、服务发布、路由注册、生命周期
 │  ├─ collector.js       # 订阅会话事件、白名单、游标 + fork 边界 + 回填
@@ -37,18 +39,18 @@ dsh-plugin-usage-analytics/
 │  ├─ rpc.js             # 设计 §7.5 的 18 个 JSON-RPC 方法 + 信封
 │  ├─ shared.js          # 常量、VERSION、safeGet、detectProfile、工具函数
 │  └─ client.js          # 侧栏入口 + 面板（React，只用 --dsw-alias-* token）
-├─ test/                 # 6 个 *.test.mjs + harness.mjs + verify-http.mjs
+├─ test/                 # 7 个 *.test.mjs + harness.mjs + verify-http.mjs
 ├─ docs/design-mapping.md# 设计到实现的映射与降级说明
 ├─ CHANGELOG.md / README.md（中英双语）/ HANDOFF.md / LICENSE
 ```
 
 ## 4. 最近一轮变更与交付成果
 
+- **`dsh-usage` CLI 导出工具（2026-11-15，未发版，进 `[Unreleased]`）**：新增 `bin/dsh-usage.mjs`（零依赖，`#!/usr/bin/env node`），`dsh-usage <jsonl|csv> [--from] [--to] [--out] [--file] [--profile] [--home]` 把本地日表导出为 JSONL / CSV——不经宿主，直接读 `<DSH_HOME>/storages/plugin_analytics_<profile>.json`（single 布局快照），数据解析复用 `lib/store.js`（构造只读 domain 适配器喂 `AnalyticsStore.load()`，schema 归一化 + meta 迁移不重复实现）。`package.json` 加 `bin.dsh-usage`、`files` 加 `bin/`、`scripts.test/check` 收录新文件；新增 `test/dsh-usage.test.mjs`（10 条：参数解析 / 渲染 / 加载过滤 / 子进程端到端，测试 84 → 94 全绿）；README 中英双语加「CLI 导出」小节并更新测试清单。真机快照（default / desktop profile）已跑通：JSONL 过滤输出、CSV 表头 + 升序行、`--out` 落盘、缺失文件 exit 1 并列出候选。
 - **公开发布 v0.1.1**（2026-10-21）：建公开仓库 → 推 `main` → `git tag -a v0.1.1 -m "v0.1.1: 公开首个版本——本地用量与能力看板，75 条测试全绿"` → GitHub Release → 向 `awesome-dsh-plugin` 提收录 PR。
 - 发布配套：英文 README 扩写到与中文对等（配置表、API、验证状态、开发、限制、配图说明）；`package.json` 补 `repository`/`homepage`/`bugs`/`author`；新增 `.gitignore`；构建期 `.bak-*` 快照移出包目录（移到 `F:\AI\DeepSeek haness\workspace\_trash_20261021_usage-analytics`）。
 - README 推荐安装方式改为 `dsh plugin --profile <profile> add github:wjf1/dsh-plugin-usage-analytics`，手工 Junction 降为离线备选。
 - **真机验收闭环（2026-11-01）**：装机侧根因查明（包实体被 npm prune：bundles 有登记、dependencies 无条目）→ 装回 0.1.1 + 补依赖登记 → 宿主 0.2.1-rc.3 上侧栏「用量分析」面板全量渲染确认，`assets/panel-usage.png` 入仓 + `screenshots.json` 声明；README 中英验证状态表与 `docs/design-mapping.md` 的 ⚠️ 全部翻绿。
-- README 推荐安装方式改为 `dsh plugin --profile <profile> add github:wjf1/dsh-plugin-usage-analytics`，手工 Junction 降为离线备选。
 
 ## 5. 待办与下一步
 
@@ -56,6 +58,8 @@ dsh-plugin-usage-analytics/
 - [x] 面板截图：**已完成（2026-11-01）**——`assets/panel-usage.png`（真机实拍，已裁除侧栏会话列表等敏感区域），`screenshots.json` 已声明。
 - [ ] 视市场评审反馈修正条目描述或分类（现为 `usage`）。
 - [ ] 可选：把 `plugins`/`env`/`events`/`report` 四个降级方法补回真实数据模型（见 `docs/design-mapping.md`）。
+- [ ] 可选：`dsh-usage` 支持 per-record 布局快照（当前只读 single 布局 JSON；需要先核实宿主 per-record 落盘的目录/文件命名）。
+- [ ] 发版时：`0.1.2 → 0.1.3`（含 dsh-usage），走四文档门禁 + annotated tag，Release 正文对齐 CHANGELOG。
 
 ## 6. 关键避坑与运行约束
 

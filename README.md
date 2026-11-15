@@ -114,6 +114,49 @@ Prefix: `API_PREFIX = /dsh-plugin-usage-analytics/api`.
 >
 > Both `POST /reset` and the RPC `reset` method require an explicit confirmation (`?confirm=RESET` / `params.confirm:"RESET"`), otherwise they return `E_CONFIRM`.
 
+## CLI export (`dsh-usage`)
+
+A zero-dependency CLI that exports the locally collected daily table as JSONL / CSV (ccusage-style consumption). It does not go through the DSH host and does not need the panel to be online — it reads the on-disk storage snapshot directly:
+
+```bash
+# By profile (default `default`: $DSH_HOME or ~/.dsh/storages/plugin_analytics_<profile>.json)
+dsh-usage jsonl --from 2026-11-01 --to 2026-11-30
+dsh-usage csv --profile desktop --out usage-11.csv
+
+# Or point at a snapshot file explicitly (backups and test fixtures work too)
+node bin/dsh-usage.mjs jsonl --file /path/to/plugin_analytics_default.json
+```
+
+Options:
+
+| Option | Meaning |
+|---|---|
+| `<jsonl\|csv>` | Output format; JSONL = one line per day, CSV = header row + one row per day (dates ascending) |
+| `--from` / `--to` | Inclusive date-range filter (`YYYY-MM-DD`); optional |
+| `--out <file>` | Write to a file (stderr reports the day count); stdout by default |
+| `--file <path>` | Explicit snapshot path (single-layout JSON); probed via `--profile` by default |
+| `--profile <name>` | Storage profile name (default `default`; separates multiple profiles) |
+| `--home <dir>` | DSH home directory (default `$DSH_HOME`, otherwise `~/.dsh`) |
+
+Exit codes: 0 success; 1 data file missing/corrupt (stderr lists sibling snapshots); 2 usage error. `package.json` declares `bin.dsh-usage`, so `npm link` / a global install gives you `dsh-usage` directly; `node bin/dsh-usage.mjs` is equivalent.
+
+Each line uses the fields of the `daily` storage table:
+
+| Field | Meaning |
+|---|---|
+| `day` | Local date `YYYY-MM-DD` |
+| `events` | Session events consumed that day |
+| `toolCalls` / `toolErrors` | Tool calls / failed calls (the "request" proxy) |
+| `steps` / `turns` | Model steps / conversation turns |
+| `sessions` | Sessions first seen that day |
+| `tokensIn` / `tokensOut` | Token counters |
+| `ms` / `msSamples` / `maxMs` | Tool latency sum / samples / max (avg = `ms / msSamples`) |
+| `panels` / `commands` | Panel opens / command invocations |
+| `mcp` / `skills` | MCP / skill capability calls |
+| `dropped` | Events dropped (sampling / per-day cap) |
+
+JSONL matches the REST `/export` NDJSON shape (`{"kind":"daily","day":"2026-10-28","events":510,"toolCalls":127,...}`); parsing reuses `lib/store.js` (schema normalization + meta migration), the same source as the panel / HTTP queries.
+
 ## Storage
 
 One domain per profile: `plugin_analytics_<profile name>` (via `storageDomain.open`), defaulting to `layout: 'single'`; the on-disk location is decided by the host's `DSH_HOME/storages`. Tables:
@@ -137,10 +180,10 @@ No build step — edit `lib/*.js` directly and run:
 
 ```bash
 node --test test/store.test.mjs test/aggregate.test.mjs test/collector.test.mjs \
-           test/routes.test.mjs test/rpc.test.mjs test/index.test.mjs
+           test/routes.test.mjs test/rpc.test.mjs test/index.test.mjs test/dsh-usage.test.mjs
 ```
 
-75 tests, all passing. Passing only the `test/` directory makes `node --test` fail on Windows (`Cannot find module ...\test`) — list the files explicitly.
+94 tests, all passing. Passing only the `test/` directory makes `node --test` fail on Windows (`Cannot find module ...\test`) — list the files explicitly.
 
 ## Known limitations
 
